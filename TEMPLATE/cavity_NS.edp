@@ -1,0 +1,87 @@
+//************************************************************************ //
+// NAVIER-STOKES PROBLEM FOR THE LID-DRIVEN CAVITY
+//************************************************************************ //
+// (0) Numerical parameters
+real RF=4;
+
+//************************************************************************ //
+// (1) Generate the geometry and corresponding mesh
+border left(t=-0.5,0.5){x=-0.5;y=-t;label=1;};
+border lower(t=-0.5,0.5){x=t;y=-0.5;label=2;};
+border right(t=-0.5,0.5){x=0.5;y=t;label=3;};
+border upper(t=-0.5,0.5){x=-t;y=0.5;label=4;};
+
+mesh Th = buildmesh (left(4*RF)+upper(4*RF)+lower(4*RF)+right(4*RF));
+plot(Th,wait=1);
+savemesh(Th,"mesh.dat");
+
+//************************************************************************ //
+// (2) Build the Finite-Element framework
+fespace Xh(Th,P2); // Take 2nd order polynomials for velocity
+fespace Mh(Th,P1); // Take 1rst order polynomial for the pressure
+Xh v1,v2,w1,w2,bc,bcnz,h,s,g;
+Mh p,Phi,q;
+
+// Write coordinates of the mesh to a file
+ w1=x;
+ w2=y;
+ofstream h5("x.dat");
+ h5 << w1[];
+ofstream h6("y.dat");
+ h6 << w2[];
+ofstream h7("xp.dat");
+ q=x;
+ h7 << q[];
+ofstream h8("yp.dat");
+ q=y;
+ h8 << q[];
+
+//************************************************************************ //
+// (3) Get the values of the different matrices
+// (3.1) Mass matrix
+varf m(v1,w1) = int2d(Th) (v1*w1);
+varf mp(p,Phi) = int2d(Th) (p*Phi);
+matrix M=m(Xh,Xh);
+matrix Mp=mp(Mh,Mh);
+ofstream h2("M.dat");
+ h2 << M;
+ofstream h22("Mp.dat");
+ h22 << Mp;
+
+// (3.2) Stiffness matrix
+varf a(v1,w1) = int2d(Th) ((dx(v1)*dx(w1)+dy(v1)*dy(w1)));
+matrix K=a(Xh,Xh);
+ofstream ff("K.dat");
+ ff << K;
+
+// (3.3) Divergence and gradient matrices
+varf divx(v1,Phi) = int2d(Th) (Phi*dx(v1));
+varf divy(v2,Phi) = int2d(Th) (Phi*dy(v2));
+matrix Divx=divx(Xh,Mh);
+matrix Divy=divy(Xh,Mh);
+varf gradx(v1,w1)=int2d(Th) (w1*dx(v1));
+varf grady(v2,w2)=int2d(Th) (w2*dy(v2));
+matrix Gradx=gradx(Xh,Xh);
+matrix Grady=grady(Xh,Xh);
+ofstream h3("divx.dat");
+ h3 << Divx;
+ofstream h4("divy.dat");
+ h4 << Divy;
+ofstream h32("gradx.dat");
+ h32 << Gradx;
+ofstream h42("grady.dat");
+ h42 << Grady;
+
+// (3.4) Dirichlet masks
+varf b(v1,w1) = int2d(Th) (v1*w1) + on(1,2,3,4,v1=1e-30);
+varf bnz(v1,w1) = int2d(Th) (v1*w1) + on(4,v1=1e-30);
+//varf bnz(v1,w1) = int2d(Th) (v1*w1) + on(2,v1=1e-30);
+bc[]=b(0,Xh);
+bcnz[]=bnz(0,Xh);
+ofstream gg("bc.dat");
+ gg << bc[];
+ofstream hh("bcnz.dat");
+ hh << bcnz[];
+
+
+
